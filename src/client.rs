@@ -87,9 +87,7 @@ where
     IO: AsyncRead + AsyncWrite + Unpin,
 {
     fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
+        self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
         match self.state {
             #[cfg(feature = "early-data")]
@@ -112,11 +110,11 @@ where
                 }
 
                 Poll::Pending
-            }
+            },
             TlsState::Stream | TlsState::WriteShutdown => {
                 let this = self.get_mut();
-                let mut stream =
-                    Stream::new(&mut this.io, &mut this.session).set_eof(!this.state.readable());
+                let mut stream = Stream::new(&mut this.io, &mut this.session)
+                    .set_eof(!this.state.readable());
                 let prev = buf.remaining();
 
                 match stream.as_mut_pin().poll_read(cx, buf) {
@@ -126,14 +124,16 @@ where
                         }
 
                         Poll::Ready(Ok(()))
-                    }
-                    Poll::Ready(Err(err)) if err.kind() == io::ErrorKind::ConnectionAborted => {
+                    },
+                    Poll::Ready(Err(err))
+                        if err.kind() == io::ErrorKind::ConnectionAborted =>
+                    {
                         this.state.shutdown_read();
                         Poll::Ready(Err(err))
-                    }
+                    },
                     output => output,
                 }
-            }
+            },
             TlsState::ReadShutdown | TlsState::FullyShutdown => Poll::Ready(Ok(())),
         }
     }
@@ -146,9 +146,7 @@ where
     /// Note: that it does not guarantee the final data to be sent.
     /// To be cautious, you must manually call `flush`.
     fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
+        self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         let this = self.get_mut();
         let mut stream =
@@ -175,9 +173,7 @@ where
     /// Note: that it does not guarantee the final data to be sent.
     /// To be cautious, you must manually call `flush`.
     fn poll_write_vectored(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        bufs: &[io::IoSlice<'_>],
+        self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[io::IoSlice<'_>],
     ) -> Poll<io::Result<usize>> {
         let this = self.get_mut();
         let mut stream =
@@ -222,7 +218,9 @@ where
         stream.as_mut_pin().poll_flush(cx)
     }
 
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>, cx: &mut Context<'_>,
+    ) -> Poll<io::Result<()>> {
         #[cfg(feature = "early-data")]
         {
             // complete handshake
@@ -245,11 +243,8 @@ where
 
 #[cfg(feature = "early-data")]
 fn poll_handle_early_data<IO>(
-    state: &mut TlsState,
-    stream: &mut Stream<IO, ClientConnection>,
-    early_waker: &mut Option<Waker>,
-    cx: &mut Context<'_>,
-    bufs: &[io::IoSlice<'_>],
+    state: &mut TlsState, stream: &mut Stream<IO, ClientConnection>,
+    early_waker: &mut Option<Waker>, cx: &mut Context<'_>, bufs: &[io::IoSlice<'_>],
 ) -> Poll<io::Result<usize>>
 where
     IO: AsyncRead + AsyncWrite + Unpin,

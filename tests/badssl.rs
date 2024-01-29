@@ -11,10 +11,7 @@ use tokio_rustls::{
 };
 
 async fn get(
-    config: Arc<ClientConfig>,
-    domain: &str,
-    port: u16,
-    vectored: bool,
+    config: Arc<ClientConfig>, domain: &str, port: u16, vectored: bool,
 ) -> io::Result<(TlsStream<TcpStream>, String)> {
     let connector = TlsConnector::from(config);
     let input = format!("GET / HTTP/1.0\r\nHost: {}\r\n\r\n", domain);
@@ -45,9 +42,10 @@ async fn test_tls12_vectored() -> io::Result<()> {
 async fn test_tls12_impl(vectored: bool) -> io::Result<()> {
     let mut root_store = rustls::RootCertStore::empty();
     root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-    let config = rustls::ClientConfig::builder_with_protocol_versions(&[&rustls::version::TLS12])
-        .with_root_certificates(root_store)
-        .with_no_client_auth();
+    let config =
+        rustls::ClientConfig::builder_with_protocol_versions(&[&rustls::version::TLS12])
+            .with_root_certificates(root_store)
+            .with_no_client_auth();
 
     let config = Arc::new(config);
     let domain = "tls-v1-2.badssl.com";

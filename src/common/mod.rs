@@ -23,7 +23,9 @@ impl TlsState {
     #[inline]
     pub fn shutdown_read(&mut self) {
         match *self {
-            TlsState::WriteShutdown | TlsState::FullyShutdown => *self = TlsState::FullyShutdown,
+            TlsState::WriteShutdown | TlsState::FullyShutdown => {
+                *self = TlsState::FullyShutdown
+            },
             _ => *self = TlsState::ReadShutdown,
         }
     }
@@ -31,7 +33,9 @@ impl TlsState {
     #[inline]
     pub fn shutdown_write(&mut self) {
         match *self {
-            TlsState::ReadShutdown | TlsState::FullyShutdown => *self = TlsState::FullyShutdown,
+            TlsState::ReadShutdown | TlsState::FullyShutdown => {
+                *self = TlsState::FullyShutdown
+            },
             _ => *self = TlsState::WriteShutdown,
         }
     }
@@ -94,7 +98,9 @@ where
 
         let n = match self.session.read_tls(&mut reader) {
             Ok(n) => n,
-            Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => return Poll::Pending,
+            Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => {
+                return Poll::Pending
+            },
             Err(err) => return Poll::Ready(Err(err)),
         };
 
@@ -140,11 +146,11 @@ where
                     Poll::Ready(Ok(n)) => {
                         wrlen += n;
                         need_flush = true;
-                    }
+                    },
                     Poll::Pending => {
                         write_would_block = true;
                         break;
-                    }
+                    },
                     Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
                 }
             }
@@ -164,16 +170,17 @@ where
                     Poll::Pending => {
                         read_would_block = true;
                         break;
-                    }
+                    },
                     Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
                 }
             }
 
             return match (self.eof, self.session.is_handshaking()) {
                 (true, true) => {
-                    let err = io::Error::new(io::ErrorKind::UnexpectedEof, "tls handshake eof");
+                    let err =
+                        io::Error::new(io::ErrorKind::UnexpectedEof, "tls handshake eof");
                     Poll::Ready(Err(err))
-                }
+                },
                 (_, false) => Poll::Ready(Ok((rdlen, wrlen))),
                 (_, true) if write_would_block || read_would_block => {
                     if rdlen != 0 || wrlen != 0 {
@@ -181,7 +188,7 @@ where
                     } else {
                         Poll::Pending
                     }
-                }
+                },
                 (..) => continue,
             };
         }
@@ -194,9 +201,7 @@ where
     SD: SideData,
 {
     fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
+        mut self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
         let mut io_pending = false;
 
@@ -205,12 +210,12 @@ where
             match self.read_io(cx) {
                 Poll::Ready(Ok(0)) => {
                     break;
-                }
+                },
                 Poll::Ready(Ok(_)) => (),
                 Poll::Pending => {
                     io_pending = true;
                     break;
-                }
+                },
                 Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
             }
         }
@@ -227,7 +232,7 @@ where
             Ok(n) => {
                 buf.advance(n);
                 Poll::Ready(Ok(()))
-            }
+            },
 
             // Rustls doesn't have more data to yield, but it believes the connection is open.
             Err(ref err) if err.kind() == io::ErrorKind::WouldBlock => {
@@ -241,7 +246,7 @@ where
                 }
 
                 Poll::Pending
-            }
+            },
 
             Err(err) => Poll::Ready(Err(err)),
         }
@@ -254,9 +259,7 @@ where
     SD: SideData,
 {
     fn poll_write(
-        mut self: Pin<&mut Self>,
-        cx: &mut Context,
-        buf: &[u8],
+        mut self: Pin<&mut Self>, cx: &mut Context, buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         let mut pos = 0;
 
@@ -273,7 +276,7 @@ where
                     Poll::Ready(Ok(0)) | Poll::Pending => {
                         would_block = true;
                         break;
-                    }
+                    },
                     Poll::Ready(Ok(_)) => (),
                     Poll::Ready(Err(err)) => return Poll::Ready(Err(err)),
                 }
@@ -334,7 +337,9 @@ where
         Pin::new(&mut self.io).poll_flush(cx)
     }
 
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+    fn poll_shutdown(
+        mut self: Pin<&mut Self>, cx: &mut Context<'_>,
+    ) -> Poll<io::Result<()>> {
         while self.session.wants_write() {
             ready!(self.write_io(cx))?;
         }
