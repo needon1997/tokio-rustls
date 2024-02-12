@@ -48,7 +48,9 @@ use std::task::{Context, Poll};
 
 pub use rustls;
 use rustls::server::AcceptedAlert;
-use rustls::{ClientConfig, ClientConnection, CommonState, ServerConfig, ServerConnection};
+use rustls::{
+    ClientConfig, ClientConnection, CommonState, ServerConfig, ServerConnection,
+};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 
 macro_rules! ready {
@@ -107,7 +109,9 @@ impl TlsConnector {
     }
 
     #[inline]
-    pub fn connect<IO>(&self, domain: pki_types::ServerName<'static>, stream: IO) -> Connect<IO>
+    pub fn connect<IO>(
+        &self, domain: pki_types::ServerName<'static>, stream: IO,
+    ) -> Connect<IO>
     where
         IO: AsyncRead + AsyncWrite + Unpin,
     {
@@ -115,10 +119,7 @@ impl TlsConnector {
     }
 
     pub fn connect_with<IO, F>(
-        &self,
-        domain: pki_types::ServerName<'static>,
-        stream: IO,
-        f: F,
+        &self, domain: pki_types::ServerName<'static>, stream: IO, f: F,
     ) -> Connect<IO>
     where
         IO: AsyncRead + AsyncWrite + Unpin,
@@ -133,7 +134,7 @@ impl TlsConnector {
                     // Probably not...
                     error: io::Error::new(io::ErrorKind::Other, error),
                 });
-            }
+            },
         };
         f(&mut session);
 
@@ -181,7 +182,7 @@ impl TlsAcceptor {
                     // Probably not...
                     error: io::Error::new(io::ErrorKind::Other, error),
                 });
-            }
+            },
         };
         f(&mut session);
 
@@ -274,7 +275,7 @@ where
                         io::ErrorKind::Other,
                         "acceptor cannot be polled after acceptance",
                     )))
-                }
+                },
             };
 
             if let Some((err, mut alert)) = this.alert.take() {
@@ -282,21 +283,24 @@ where
                     Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
                         this.alert = Some((err, alert));
                         return Poll::Pending;
-                    }
+                    },
                     Ok(0) | Err(_) => {
-                        return Poll::Ready(Err(io::Error::new(io::ErrorKind::InvalidData, err)))
-                    }
+                        return Poll::Ready(Err(io::Error::new(
+                            io::ErrorKind::InvalidData,
+                            err,
+                        )))
+                    },
                     Ok(_) => {
                         this.alert = Some((err, alert));
                         continue;
-                    }
+                    },
                 };
             }
 
             let mut reader = common::SyncReadAdapter { io, cx };
             match this.acceptor.read_tls(&mut reader) {
                 Ok(0) => return Err(io::ErrorKind::UnexpectedEof.into()).into(),
-                Ok(_) => {}
+                Ok(_) => {},
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => return Poll::Pending,
                 Err(e) => return Err(e).into(),
             }
@@ -305,11 +309,11 @@ where
                 Ok(Some(accepted)) => {
                     let io = this.io.take().unwrap();
                     return Poll::Ready(Ok(StartHandshake { accepted, io }));
-                }
-                Ok(None) => {}
+                },
+                Ok(None) => {},
                 Err((err, alert)) => {
                     this.alert = Some((err, alert));
-                }
+                },
             }
         }
     }
@@ -346,7 +350,7 @@ where
                     // Probably not...
                     error: io::Error::new(io::ErrorKind::InvalidData, error),
                 });
-            }
+            },
         };
         f(&mut conn);
 
@@ -355,6 +359,14 @@ where
             io: self.io,
             state: TlsState::Stream,
         }))
+    }
+
+    pub fn io_ref(&self) -> &IO {
+        &self.io
+    }
+
+    pub fn io_mut(&mut self) -> &mut IO {
+        &mut self.io
     }
 }
 
@@ -476,11 +488,11 @@ impl<T> TlsStream<T> {
             Client(io) => {
                 let (io, session) = io.get_ref();
                 (io, session)
-            }
+            },
             Server(io) => {
                 let (io, session) = io.get_ref();
                 (io, session)
-            }
+            },
         }
     }
 
@@ -490,11 +502,11 @@ impl<T> TlsStream<T> {
             Client(io) => {
                 let (io, session) = io.get_mut();
                 (io, &mut *session)
-            }
+            },
             Server(io) => {
                 let (io, session) = io.get_mut();
                 (io, &mut *session)
-            }
+            },
         }
     }
 }
@@ -537,9 +549,7 @@ where
 {
     #[inline]
     fn poll_read(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &mut ReadBuf<'_>,
+        self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>,
     ) -> Poll<io::Result<()>> {
         match self.get_mut() {
             TlsStream::Client(x) => Pin::new(x).poll_read(cx, buf),
@@ -554,9 +564,7 @@ where
 {
     #[inline]
     fn poll_write(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        buf: &[u8],
+        self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         match self.get_mut() {
             TlsStream::Client(x) => Pin::new(x).poll_write(cx, buf),
@@ -566,9 +574,7 @@ where
 
     #[inline]
     fn poll_write_vectored(
-        self: Pin<&mut Self>,
-        cx: &mut Context<'_>,
-        bufs: &[io::IoSlice<'_>],
+        self: Pin<&mut Self>, cx: &mut Context<'_>, bufs: &[io::IoSlice<'_>],
     ) -> Poll<io::Result<usize>> {
         match self.get_mut() {
             TlsStream::Client(x) => Pin::new(x).poll_write_vectored(cx, bufs),
